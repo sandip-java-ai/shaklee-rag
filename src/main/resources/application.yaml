@@ -1,0 +1,16 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: shaklee-rag
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      embedding:
+        options:
+          model: text-embedding-ada-002
+
+logging:
+  level:
+    org.springframework.ai: DEBUG
