@@ -56,6 +56,12 @@
 			<artifactId>spring-ai-starter-model-openai</artifactId>
 		</dependency>
 
+		<!-- Claude -->
+		<dependency>
+			<groupId>org.springframework.ai</groupId>
+			<artifactId>spring-ai-starter-model-anthropic</artifactId>
+		</dependency>
+
 		<!-- XML parsing -->
 		<dependency>
 			<groupId>com.fasterxml.jackson.dataformat</groupId>
