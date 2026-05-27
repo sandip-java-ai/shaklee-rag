@@ -19,10 +19,12 @@ public class IngestionService {
 
     private final VectorStore vectorStore;
     private final ProductXmlParser productXmlParser;
+    private final List<Product> productCache;
 
-    public IngestionService(VectorStore vectorStore, ProductXmlParser productXmlParser) {
+    public IngestionService(VectorStore vectorStore, ProductXmlParser productXmlParser, List<Product> productCache) {
         this.vectorStore = vectorStore;
         this.productXmlParser = productXmlParser;
+        this.productCache = productCache;
     }
 
     public int ingestProducts() {
@@ -35,12 +37,15 @@ public class IngestionService {
             return 0;
         }
 
-        List<Document> documents = new ArrayList<>();
+        // Populate cache for price queries
+        productCache.clear();
+        productCache.addAll(products);
+        log.info("Product cache populated with {} products", productCache.size());
 
+        List<Document> documents = new ArrayList<>();
         for (Product p : products) {
             // Convert product to a rich text chunk for embedding
             String content = buildProductText(p);
-
             // Metadata for filtering and display
             Map<String, Object> metadata = Map.of(
                     "code",        p.getCode() != null ? p.getCode() : "",

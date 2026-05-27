@@ -18,16 +18,26 @@ public class RagService {
 
     private final VectorStore vectorStore;
     private final ChatClient chatClient;
+    private final HybridSearchService hybridSearchService;
 
-    public RagService(VectorStore vectorStore, ChatClient.Builder chatClientBuilder) {
+    public RagService(VectorStore vectorStore, ChatClient.Builder chatClientBuilder,
+                      HybridSearchService hybridSearchService) {
         this.vectorStore = vectorStore;
         this.chatClient = chatClientBuilder.build();
+        this.hybridSearchService = hybridSearchService;
     }
 
     public String query(String userQuestion) {
         log.info("RAG query: {}", userQuestion);
 
-        // Step 1 — Find relevant products from vector store
+        // Step 1 — Check if it's a price query → hybrid search
+        if (hybridSearchService.isPriceQuery(userQuestion)) {
+            log.info("Routing to hybrid price search");
+            String priceResult = hybridSearchService.handlePriceQuery(userQuestion);
+            if (priceResult != null) return priceResult;
+        }
+
+        // Step 2 — Semantic RAG search
         List<Document> relevant = vectorStore.similaritySearch(
                 SearchRequest.builder()
                         .query(userQuestion)
@@ -41,12 +51,11 @@ public class RagService {
             return "I couldn't find any relevant products for your question.";
         }
 
-        // Step 2 — Build context from retrieved products
+        // Step 3 — Build context and send to Claude
         String context = relevant.stream()
                 .map(Document::getText)
                 .collect(Collectors.joining("\n---\n"));
 
-        // Step 3 — Send context + question to Claude/OpenAI
         String prompt = """
             You are a helpful Shaklee product assistant.
             Answer the user's question based ONLY on the product information provided below.
