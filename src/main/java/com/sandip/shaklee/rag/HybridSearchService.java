@@ -30,12 +30,17 @@ public class HybridSearchService {
     }
 
     // Handle price-based queries with exact sorting
-    public String handlePriceQuery(String question) {
+    public String handlePriceQuery(String question, String context) {
         if (productCache.isEmpty()) {
             return "Product catalog not loaded. Please run ingestion first.";
         }
 
         String q = question.toLowerCase();
+
+        // If context mentions specific category — filter by it
+        String categoryFilter = extractCategoryFromContext(context);
+        log.info("Price query with category filter: {}", categoryFilter);
+
         log.info("Handling price query: {}", question);
 
         // Cheapest for members
@@ -45,13 +50,19 @@ public class HybridSearchService {
             String priceType = q.contains("guest") ? "guest" :
                     q.contains("distributor") ? "distributor" : "member";
 
-            List<Product> sorted = productCache.stream()
+            List<Product> filtered = productCache.stream()
                     .filter(p -> getPrice(p, priceType) > 0)
+                    .filter(p -> categoryFilter == null ||
+                            p.getName().toLowerCase().contains(categoryFilter) ||
+                            (p.getDescription() != null &&
+                                    p.getDescription().toLowerCase().contains(categoryFilter)) ||
+                            (p.getSummary() != null &&
+                                    p.getSummary().toLowerCase().contains(categoryFilter)))
                     .sorted(Comparator.comparingDouble(p -> getPrice(p, priceType)))
                     .limit(5)
                     .collect(Collectors.toList());
 
-            return formatPriceResults(sorted, "cheapest", priceType);
+            return formatPriceResults(filtered, "cheapest", priceType);
         }
 
         // Most expensive
@@ -61,6 +72,10 @@ public class HybridSearchService {
 
             List<Product> sorted = productCache.stream()
                     .filter(p -> getPrice(p, priceType) > 0)
+                    .filter(p -> categoryFilter == null ||
+                            p.getName().toLowerCase().contains(categoryFilter) ||
+                            (p.getDescription() != null &&
+                                    p.getDescription().toLowerCase().contains(categoryFilter)))
                     .sorted(Comparator.comparingDouble(
                             (Product p) -> getPrice(p, priceType)).reversed())
                     .limit(5)
@@ -75,6 +90,8 @@ public class HybridSearchService {
             if (maxPrice > 0) {
                 List<Product> filtered = productCache.stream()
                         .filter(p -> p.getMemberPrice() > 0 && p.getMemberPrice() < maxPrice)
+                        .filter(p -> categoryFilter == null ||
+                                p.getName().toLowerCase().contains(categoryFilter))
                         .sorted(Comparator.comparingDouble(Product::getMemberPrice))
                         .limit(10)
                         .collect(Collectors.toList());
@@ -125,5 +142,21 @@ public class HybridSearchService {
             }
         } catch (Exception ignored) {}
         return 0;
+    }
+
+    // Extract category keyword from conversation history
+    private String extractCategoryFromContext(String context) {
+        if (context == null || context.isEmpty()) return null;
+
+        String ctx = context.toLowerCase();
+        if (ctx.contains("protein"))    return "protein";
+        if (ctx.contains("vitamin"))    return "vitamin";
+        if (ctx.contains("weight"))     return "weight";
+        if (ctx.contains("immunity") ||
+                ctx.contains("immune"))     return "immune";
+        if (ctx.contains("omega"))      return "omega";
+        if (ctx.contains("energy"))     return "energy";
+        if (ctx.contains("probiotic"))  return "probiotic";
+        return null;
     }
 }
